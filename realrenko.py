@@ -8,14 +8,14 @@ from stocktrends import Renko
 exchange = ccxt.binance()
 
 # Obter os dados OHLC para Bitcoin
-bars = exchange.fetch_ohlcv('BTC/USDT', '1h')
+bars = exchange.fetch_ohlcv('ATOM/USDT', '15m')
 
 # Converter os dados para um DataFrame do pandas
 df = pd.DataFrame(bars, columns=['date', 'open', 'high', 'low', 'close', 'volume'])
 
 # Converter timestamp para datetime
 df['date'] = pd.to_datetime(df['date'], unit='ms')
-
+df.to_csv('renko_binance.csv', index=False)
 # Renomear as colunas para adequação com a biblioteca stocktrends
 df.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
 
@@ -28,7 +28,7 @@ renko.brick_size = 100
 # Gerar o gráfico de Renko
 renko_df = renko.get_ohlc_data()
 
-# Salvar o DataFrame em um arquivo CSV
+# Salvar o DataFrame em um arquivo CSVimage.png
 renko_df.to_csv('renko_data.csv', index=False)
 # Plotar o gráfico de Renko
 fig, ax = plt.subplots()

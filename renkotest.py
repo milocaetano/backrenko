@@ -1,47 +1,51 @@
-import ccxt
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from stocktrends import Renko
+import backtrader as bt
 
-# Configurar a conexão com a exchange
-exchange = ccxt.binance()
 
-# Obter os dados OHLC para Bitcoin
-bars = exchange.fetch_ohlcv('BTC/USDT', '1d')
 
-# Converter os dados para um DataFrame do pandas
-df = pd.DataFrame(bars, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
+# Criar um feed de dados usando os dados do Renko
+class RenkoData(bt.feeds.PandasData):
+    lines = ('uptrend',)
+    params = (('uptrend', -1),)
 
-# Converter timestamp para datetime
-df['time'] = pd.to_datetime(df['time'], unit='ms')
 
-# Renomear as colunas para adequação com a biblioteca stocktrends
-df.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+# Adicionar uma estratégia
+class RenkoStrategy(bt.Strategy):
+    def next(self):
+        if not self.position:
+            if self.data.uptrend[0] == True:
+                self.buy()
+        else:
+            if self.data.uptrend[0] == False:
+                self.sell()
+# Carregar os dados do Renko de um arquivo CSV
+df = pd.read_csv('renko_data.csv')
 
-# Instanciar um objeto Renko
-renko = Renko(df)
+# Converter a coluna 'date' para o formato correto
+df['date'] = pd.to_datetime(df['date'])
+df.set_index('date', inplace=True)
 
-# Especificar os parâmetros para o Renko
-renko.brick_size = 100
+# Criar uma nova instância do Cerebro
+cerebro = bt.Cerebro()
 
-# Gerar o gráfico de Renko
-renko_df = renko.get_ohlc_data()
+# Definir o capital inicial
+cerebro.broker.setcash(100000.0)
+# Adicionar a estratégia ao Cerebro
+cerebro.addstrategy(RenkoStrategy)
 
-# Plotar o gráfico de Renko
-fig, ax = plt.subplots()
+# Criar um feed de dados usando os dados do Renko
+data = RenkoData(dataname=df)
+# Adicionar o feed de dados ao Cerebro
+cerebro.adddata(data)
 
-for index, row in renko_df.iterrows():
-    if row['uptrend']:
-        facecolor = 'green'
-    else:
-        facecolor = 'red'
-    
-    # Cria um retângulo representando um "tijolo" no gráfico de Renko
-    brick = Rectangle((index, row['low']), 1, row['high'] - row['low'],
-                      facecolor=facecolor, edgecolor='black')
-    ax.add_patch(brick)
+# Imprimir o valor inicial
+print('Valor inicial: %.2f' % cerebro.broker.getvalue())
 
-# Ajusta os limites do gráfico e mostra
-ax.autoscale_view()
-plt.show()
+# Rodar o backtest
+cerebro.run()
+
+# Imprimir o valor final
+print('Valor final: %.2f' % cerebro.broker.getvalue())
+
+# Plotar o resultado
+cerebro.plot(style='candlestick')
